@@ -164,4 +164,9 @@ class RouterosController extends Controller
             ]);
         endif;
    }
+
+   public function add_dns_servers(Request $request)
+   {
+        
+   }
 }
