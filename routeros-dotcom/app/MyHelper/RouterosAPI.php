@@ -1,5 +1,5 @@
 <?php
-
+namespace App\MyHelper;
 
 class RouterosAPI
 {
