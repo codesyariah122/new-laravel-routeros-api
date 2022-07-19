@@ -91,7 +91,7 @@ class RouterosController extends Controller
                     return response()->json([
                         'success' => true,
                         'message' => 'Routeros has been connected !',
-                        'data' => $routerosdb_data
+                        'router_data' => $routerosdb_data
                     ]);
                 else:
                     return response()->json(['connect' => false, 'message' => 'Routeros is not connected'], 404);
@@ -101,15 +101,15 @@ class RouterosController extends Controller
             endif;
 
         }catch(Exception $e){
-           return response()->json([
-            'error' => true,
-            'message' => 'Error fetch data to routeros API'
-        ], 404);
-       }
-   }
+            return response()->json([
+                'error' => true,
+                'message' => 'Error fetch data to routeros API'
+            ], 404);
+        }
+    }
 
-   public function check_routeros_connection($data)
-   {
+    public function check_routeros_connection($data)
+    {
         $routeros_db = RouterOs::where('ip_address', $data['ip_address'])->get();
         if(count($routeros_db) > 0):
             $API = new RouterosAPI;
@@ -121,10 +121,10 @@ class RouterosController extends Controller
         else:
             return false;
         endif;
-   }
+    }
 
-   public function add_new_address(Request $request)
-   {
+    public function add_new_address(Request $request)
+    {
         $validator = Validator::make($request->all(), [
             'ip_address' => 'required',
             'address' => 'required',
@@ -144,7 +144,7 @@ class RouterosController extends Controller
             $list_address = $this->API->comm('/ip/address/print');
 
             if(array_search($add_address, array_column($list_address, '.id'))):
-            
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Successfully added new address from interface : '.$request->interface,
@@ -154,7 +154,8 @@ class RouterosController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $add_address["!trap"][0]["message"],
-                    'data' => $this->API->comm('/ip/address/print')
+                    'ip_address_list' => $this->API->comm('/ip/address/print'),
+                    'data' => $this->routeros_data
                 ], 404);
             endif;
         else:
@@ -163,10 +164,146 @@ class RouterosController extends Controller
                 'message' => 'Routeros data is not available on a database, please restore routeros data to database.'
             ]);
         endif;
-   }
+    }
 
-   public function add_dns_servers(Request $request)
-   {
-        
-   }
+    public function set_interface(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'numbers' => 'required',
+                'interface' => 'required',
+                'name' => 'required'
+            ]);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $interface_lists = $this->API->comm('/interface/print');
+
+                if(!array_search($request->name, array_column($interface_lists, 'name'))):
+                    $set_interface = $this->API->comm('/interface/set', [
+                        '.id' => '*'.$request->numbers,
+                        'name' => $request->name
+                    ]);
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Successfully set interface from : '.$request->interface.' to : '.$request->name,
+                        'interface_lists' => $this->API->comm('/interface/print')
+                    ]);
+                else:
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Interface name '.$request->name.' with .id : *'.$request->numbers.', has already been taken from routeros',
+                        'interface_lists' => $this->API->comm('/interface/print')
+                    ]);
+                endif;
+            else:
+                return response()->json([
+                    'empty' => true,
+                    'message' => 'Routeros data is not available on a database, please restore routeros data to database.'
+                ]);
+            endif;
+        }catch(Exception $e){
+            return response()->json([
+                'error' => true,
+                'message' => 'Error fetch data to routeros API'
+            ], 404);
+        }
+    }
+
+    public function add_dns_servers(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'servers' => 'required'
+            ]);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $add_dns = $this->API->comm('/ip/dns/set', [
+                    'servers' => $request->servers,
+                    'cache-size' => $request->cache_size,
+                    'max-udp-packet-size' => $request->max_udp_packet_size,
+                    'allow-remote-requests' => $request->allow_remote_requests
+                ]);
+
+                if(count($add_dns) == 0){
+                    $dns_servers = $this->API->comm('/ip/dns/print');
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Successfully added new dns servers',
+                        'dns_list' => $dns_servers,
+                        'router_data' => $this->routeros_data
+                    ]);
+                }else{
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed added new dns servers',
+                        'router_data' => $this->routeros_data
+                    ]);
+                }
+            else:
+                return response()->json([
+                    'empty' => true,
+                    'message' => 'Routeros data is not available on a database, please restore routeros data to database.'
+                ]);
+            endif;
+        }catch(Exception $e){
+            return response()->json([
+                'error' => true,
+                'message' => 'Error fetch data to routeros API'
+            ], 404);
+        }
+    }
+
+    public function add_ip_routes(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'gateway' => 'required',
+                'interface' => 'required'
+            ]);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $route_lists = $this->API->comm('/ip/route/print');
+
+                if(!array_search($request->gateway, array_column($route_lists, 'gateway'))):
+
+                    $add_route = $this->API->comm('/ip/route/add', [
+                        'gateway' => $request->gateway
+                    ]);
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Successfully added new routes from : '.$request->interface.' with gateway : '.$request->gateway,
+                        'route_lists' => $route_lists,
+                        'router_data' => $this->routeros_data
+                    ]);
+                else:
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Gateway address '.$request->gateway.' has already been taken',
+                        'route_lists' => $route_lists,
+                        'router_data' => $this->routeros_data
+                    ], 404);
+                endif;
+            else:
+                return response()->json([
+                    'empty' => true,
+                    'message' => 'Routeros data is not available on a database, please restore routeros data to database.'
+                ]);
+            endif;
+
+        }catch(Exception $e){
+            return response()->json([
+                'error' => true,
+                'message' => 'Error fetch data to routeros API'
+            ], 404);
+        }
+    }
 }
