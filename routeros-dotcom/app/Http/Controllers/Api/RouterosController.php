@@ -272,9 +272,9 @@ class RouterosController extends Controller
 
             if($this->check_routeros_connection($request->all())):
                 $route_lists = $this->API->comm('/ip/route/print');
+                $find_route_lists = array_search($request->gateway, array_column($route_lists, 'gateway'));
 
-                if(!array_search($request->gateway, array_column($route_lists, 'gateway'))):
-
+                if($find_route_lists === 0):
                     $add_route = $this->API->comm('/ip/route/add', [
                         'gateway' => $request->gateway
                     ]);
