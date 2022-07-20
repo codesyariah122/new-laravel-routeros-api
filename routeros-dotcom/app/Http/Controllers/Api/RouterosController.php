@@ -99,7 +99,7 @@ class RouterosController extends Controller
         }catch(Exception $e){
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetch data Routeros API'
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
             ]);
         }
     }
@@ -122,11 +122,9 @@ class RouterosController extends Controller
                 'connect' => $connection
             ];
             return true;
-
         else:
-            echo "Routeros not available at database, please create routeros connection again";
+            echo "Routeros data not available in database, please create connection again !";
         endif;
-
     }
 
     public function set_interface(Request $request)
@@ -134,32 +132,80 @@ class RouterosController extends Controller
         try{
             $validator = Validator::make($request->all(), [
                 'ip_address' => 'required',
-                'numbers' => 'required',
+                'id' => 'required',
                 'interface' => 'required',
                 'name' => 'required'
             ]);
+
             if($validator->fails()) return response()->json($validator->errors(), 404);
 
             if($this->check_routeros_connection($request->all())):
-                $interface_list = $this->API->comm('/interface/print');
-
-                $find_interface = array_search($request->name, array_column($interface_list, 'name'));
+                $interface_lists = $this->API->comm('/interface/print');
+                $find_interface = array_search($request->name, array_column($interface_lists, 'name'));
 
                 if(!$find_interface):
                     $set_interface = $this->API->comm('/interface/set', [
-                        '.id' => '*'.$request->numbers,
-                        'name' => $request->name
+                        '.id' => "*$request->id",
+                        'name' => "$request->name"
                     ]);
+
                     return response()->json([
                         'success' => true,
-                        'message' => 'Successfully set interface from : '.$request->interface.' to : '.$request->name,
-                        'interface_list' => $this->API->comm('/interface/print')
+                        'message' => "Successfully set interface from : $request->interface, to : $request->name",
+                        'interface_lists' => $this->API->comm('/interface/print')
+                    ]);
+
+                else:
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Interface name : $request->interface, with .id : *$request->id has already been taken from routeros",
+                        'interface_lists' => $this->API->comm('/interface/print')
+                    ]);
+                endif;
+                
+            endif; 
+
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
+            ]);
+        }
+    }
+
+    public function add_new_address(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'address' => 'required',
+                'interface' => 'required'
+            ]);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $add_address = $this->API->comm('/ip/address/add', [
+                    'address' => $request->address,
+                    'interface' => $request->interface
+                ]);
+
+                $list_address = $this->API->comm('/ip/address/print');
+
+                $find_address_id = array_search($add_address, array_column($list_address, '.id'));
+
+                if($find_address_id):
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Successfully added new address from interface : $request->interface",
+                        'address_lists' => $list_address
                     ]);
                 else:
                     return response()->json([
                         'success' => false,
-                        'message' => "Interface name : $request->name with .id : *$request->numbers has already been taken from routeros.",
-                        'interface_list' => $this->API->comm('/interface/print')
+                        'message' => $add_address['!trap'][0]['message'],
+                        'address_lists' => $list_address,
+                        'routeros_data' => $this->routeros_data
                     ]);
                 endif;
             endif;
@@ -167,7 +213,7 @@ class RouterosController extends Controller
         }catch(Exception $e){
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetch data Routeros API'
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
             ]);
         }
     }

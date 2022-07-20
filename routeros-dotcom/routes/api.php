@@ -20,4 +20,6 @@ Route::prefix('v1')->group(function(){
     Route::get('/routeros-connect', [RouterosController::class, 'routeros_connection']);
 
     Route::get('/set-interface', [RouterosController::class, 'set_interface']);
+
+    Route::get('/add-new-address', [RouterosController::class, 'add_new_address']);
 });
