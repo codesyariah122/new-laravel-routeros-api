@@ -18,4 +18,6 @@ Route::prefix('v1')->group(function(){
     Route::get('/test-api', [RouterosController::class, 'test_api']);
 
     Route::get('/routeros-connect', [RouterosController::class, 'routeros_connection']);
+
+    Route::get('/set-interface', [RouterosController::class, 'set_interface']);
 });

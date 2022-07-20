@@ -80,12 +80,12 @@ class RouterosController extends Controller
 
             if(count($routeros_db) > 0){
                 if($this->check_routeros_connection($request->all())):
-
                     return response()->json([
-                        'connect' => $this->connection,
-                        'message' => 'Routeros have a connection from database !',
+                        'connect' => true,
+                        'message' => 'Routeros have a connection from database',
                         'routeros_data' => $this->routeros_data
                     ]);
+
                 else:
                     return response()->json([
                         'error' => true,
@@ -106,21 +106,69 @@ class RouterosController extends Controller
 
     public function check_routeros_connection($data)
     {
-        $API = new RouterosAPI;
-        $connection = $API->connect($data['ip_address'], $data['login'], $data['password']);
+        $routeros_db = RouterOs::where('ip_address', $data['ip_address'])->get();
 
-        if(!$connection): 
-            return false;
-        else:
+        if(count($routeros_db) > 0):
+            $API = new RouterosAPI;
+            $connection = $API->connect($routeros_db[0]['ip_address'], $routeros_db[0]['login'], $routeros_db[0]['password']);
+            if(!$connection) return false;
+
             $this->API = $API;
             $this->connection = $connection;
             $this->routeros_data = [
-                'identity' => $API->comm('/system/identity/print')[0]['name'],
-                'ip_address' => $data['ip_address'],
-                'login' => $data['login'],
+                'identity' => $this->API->comm('/system/identity/print')[0]['name'],
+                'ip_address' => $routeros_db[0]['ip_address'],
+                'login' => $routeros_db[0]['login'],
                 'connect' => $connection
             ];
             return true;
+
+        else:
+            echo "Routeros not available at database, please create routeros connection again";
         endif;
+
+    }
+
+    public function set_interface(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'numbers' => 'required',
+                'interface' => 'required',
+                'name' => 'required'
+            ]);
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $interface_list = $this->API->comm('/interface/print');
+
+                $find_interface = array_search($request->name, array_column($interface_list, 'name'));
+
+                if(!$find_interface):
+                    $set_interface = $this->API->comm('/interface/set', [
+                        '.id' => '*'.$request->numbers,
+                        'name' => $request->name
+                    ]);
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Successfully set interface from : '.$request->interface.' to : '.$request->name,
+                        'interface_list' => $this->API->comm('/interface/print')
+                    ]);
+                else:
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Interface name : $request->name with .id : *$request->numbers has already been taken from routeros.",
+                        'interface_list' => $this->API->comm('/interface/print')
+                    ]);
+                endif;
+            endif;
+
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API'
+            ]);
+        }
     }
 }
