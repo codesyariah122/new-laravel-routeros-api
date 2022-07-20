@@ -258,4 +258,78 @@ class RouterosController extends Controller
             ]);
         }
     }
+
+    public function add_dns_servers(Request $request)
+    {
+        try{
+            $schema = [
+                'ip_address' => 'required',
+                'servers' => 'required',
+                'remote_requests' => 'required'
+            ];
+
+            $validator = Validator::make($request->all(), $schema);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $add_dns = $this->API->comm('/ip/dns/set', [
+                    'servers' => $request->servers,
+                    'allow-remote-requests' => $request->remote_requests
+                ]);
+
+                $dns_lists = $this->API->comm('/ip/dns/print');
+
+                if(count($add_dns) == 0):
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Successfully addedd new dns servers',
+                        'dns_lists' => $dns_lists
+                    ]);
+                else:
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed added dns servers',
+                        'routeros_data' => $this->routeros_data
+                    ]);
+                endif;
+
+            endif;
+
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
+            ]);
+        }
+    }
+
+    public function routeros_reboot(Request $request)
+    {
+        try{
+            $schema = [
+                'ip_address' => 'required'
+            ];
+
+            $validator = Validator::make($request->all(), $schema);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $reboot = $this->API->comm('/system/reboot');
+
+                return response()->json([
+                    'reboot' => true,
+                    'message' => 'Routeros has been reboot the system',
+                    'connection' => $this->connection
+                ]);
+
+            endif;
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
+            ]);
+        }
+    }
 }

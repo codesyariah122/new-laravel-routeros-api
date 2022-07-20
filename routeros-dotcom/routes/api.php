@@ -24,4 +24,8 @@ Route::prefix('v1')->group(function(){
     Route::get('/add-new-address', [RouterosController::class, 'add_new_address']);
 
     Route::get('/add-ip-route', [RouterosController::class, 'add_ip_route']);
+
+    Route::get('/add-dns-server', [RouterosController::class, 'add_dns_servers']);
+
+    Route::get('/routeros-reboot', [RouterosController::class, 'routeros_reboot']);
 });
