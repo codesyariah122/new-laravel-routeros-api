@@ -22,4 +22,6 @@ Route::prefix('v1')->group(function(){
     Route::get('/set-interface', [RouterosController::class, 'set_interface']);
 
     Route::get('/add-new-address', [RouterosController::class, 'add_new_address']);
+
+    Route::get('/add-ip-route', [RouterosController::class, 'add_ip_route']);
 });

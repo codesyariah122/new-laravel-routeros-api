@@ -217,4 +217,45 @@ class RouterosController extends Controller
             ]);
         }
     }
+
+    public function add_ip_route(Request $request)
+    {
+        try{
+            $validator = Validator::make($request->all(), [
+                'ip_address' => 'required',
+                'gateway' => 'required'
+            ]);
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $route_lists = $this->API->comm('/ip/route/print');
+                $find_route_lists = array_search($request->gateway, array_column($route_lists, 'gateway'));
+
+                if($find_route_lists === 0):
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Gateway address : $request->gateway has already been taken",
+                        'route_lists' => $this->API->comm('/ip/route/print')
+                    ]);
+                    
+                else:
+                    $add_route_lists = $this->API->comm('/ip/route/add', [
+                        'gateway' => $request->gateway
+                    ]);
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Successfully added new routes with gateway : $request->gateway",
+                        'route_lists' => $this->API->comm('/ip/route/print'),
+                        'routeros_data' => $this->routeros_data
+                    ]);
+                endif;
+
+            endif;
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
+            ]);
+        }
+    }
 }
