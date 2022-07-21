@@ -43,3 +43,8 @@ $cfg['Servers'][$i]['host'] = 'mysql';
 
 **Access phpmyadmin on browser**  
 http://localhost:8081
+
+
+
+## Playlist :  
+https://www.youtube.com/watch?v=a6UjEQxTW-w&list=PLPSEuAupgnCjBss5K50iH95K8Kz75VDb-
