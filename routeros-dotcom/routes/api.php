@@ -27,5 +27,9 @@ Route::prefix('v1')->group(function(){
 
     Route::get('/add-dns-server', [RouterosController::class, 'add_dns_servers']);
 
+    Route::get('/masquerade-srcnat', [RouterosController::class, 'masquerade_srcnat']);
+
     Route::get('/routeros-reboot', [RouterosController::class, 'routeros_reboot']);
+
+    Route::get('/routeros-shutdown', [RouterosController::class, 'routeros_shutdown']);
 });

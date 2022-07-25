@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 use App\Models\RouterOs;
 use App\MyHelper\RouterosAPI;
 
@@ -111,6 +112,9 @@ class RouterosController extends Controller
         if(count($routeros_db) > 0):
             $API = new RouterosAPI;
             $connection = $API->connect($routeros_db[0]['ip_address'], $routeros_db[0]['login'], $routeros_db[0]['password']);
+
+            if($routeros_db[0]['connect'] !== $connection) $update_routerosdb_connection = RouterOs::where('id', $routeros_db[0]['id'])->update(['connect' => $connection]);
+
             if(!$connection) return false;
 
             $this->API = $API;
@@ -119,6 +123,7 @@ class RouterosController extends Controller
                 'identity' => $this->API->comm('/system/identity/print')[0]['name'],
                 'ip_address' => $routeros_db[0]['ip_address'],
                 'login' => $routeros_db[0]['login'],
+                'password' => Hash::make($routeros_db[0]['password']),
                 'connect' => $connection
             ];
             return true;
@@ -304,6 +309,41 @@ class RouterosController extends Controller
         }
     }
 
+    public function masquerade_srcnat(Request $request)
+    {
+        try{
+            $schema = [
+                'ip_address' => 'required',
+                'chain' => 'required',
+                'protocol' => 'required',
+                'out_interface' => 'required',
+                'action' => 'required'
+            ];
+            $validator = Validator::make($request->all(), $schema);
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $add_firewall_nat = $this->API->comm('/ip/firewall/nat/add', [
+                    'chain' => $request->chain,
+                    'action' => $request->action,
+                    'protocol' => $request->protocol,
+                    'out-interface' => $request->out_interface
+                ]);
+
+                $firewall_nat_lists = $this->API->comm('/ip/firewall/nat/print');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => "Success added firewall nat for $request->chain",
+                    'nat_lists' => $firewall_nat_lists
+                ]);
+
+            endif;
+        }catch(Exception $e){
+            return response()->json(['error' => true, 'message' => 'Error fetch routeros API '.$e->getMessage()]);
+        }
+    }
+
     public function routeros_reboot(Request $request)
     {
         try{
@@ -332,4 +372,39 @@ class RouterosController extends Controller
             ]);
         }
     }
+
+    public function routeros_shutdown(Request $request)
+    {
+        try{
+            $schema = [
+                'ip_address' => 'required'
+            ];
+
+            $validator = Validator::make($request->all(), $schema);
+
+            if($validator->fails()) return response()->json($validator->errors(), 404);
+
+            if($this->check_routeros_connection($request->all())):
+                $update_connection = RouterOs::where('ip_address', $request->ip_address)->update(['connect' => 0]);
+
+                $new_routeros_data = RouterOs::where('ip_address', $request->ip_address)->get();
+
+                $shutdown = $this->API->comm('/system/shutdown');
+
+                return response()->json([
+                    'shutdown' => true,
+                    'message' => 'Routeros has been shutdown the system',
+                    'connection' => $new_routeros_data[0]['connect']
+                ]);
+
+            endif;
+        }catch(Exception $e){
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetch data Routeros API, '.$e->getMessage()
+            ]);
+        }
+    }
+
+    
 }
