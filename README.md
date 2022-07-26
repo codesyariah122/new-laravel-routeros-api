@@ -1,7 +1,7 @@
 # RouterosAPI Development
 # Laravel 8 Framework
 
-### Sample of connecting to routeros / mikrotik  
+### Sample connecting to routeros / mikrotik  
 <img src="https://raw.githubusercontent.com/codesyariah122/new-laravel-routeros-api/main/documentation-preview/make-routeros-connection.png"/>  
 
 <img src="https://raw.githubusercontent.com/codesyariah122/new-laravel-routeros-api/main/documentation-preview/webfig.png"/>
