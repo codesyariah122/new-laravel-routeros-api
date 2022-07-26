@@ -148,6 +148,8 @@ class RouterosController extends Controller
                 $interface_lists = $this->API->comm('/interface/print');
                 $find_interface = array_search($request->name, array_column($interface_lists, 'name'));
 
+                // var_dump($find_interface); die;
+
                 if(!$find_interface):
                     $set_interface = $this->API->comm('/interface/set', [
                         '.id' => "*$request->id",
@@ -163,7 +165,7 @@ class RouterosController extends Controller
                 else:
                     return response()->json([
                         'success' => false,
-                        'message' => "Interface name : $request->interface, with .id : *$request->id has already been taken from routeros",
+                        'message' => "Interface name : $request->name, with .id : *$request->id has already been taken from routeros",
                         'interface_lists' => $this->API->comm('/interface/print')
                     ]);
                 endif;
@@ -190,6 +192,12 @@ class RouterosController extends Controller
             if($validator->fails()) return response()->json($validator->errors(), 404);
 
             if($this->check_routeros_connection($request->all())):
+                $interface_lists = $this->API->comm('/ip/address/print');
+
+                $find_interface = array_search($request->interface, array_column($interface_lists, 'interface'));
+
+                if($find_interface) return response()->json(['error' => true, 'message' => "Interface $request->interface, have a such ip address on routeros", "suggestion" => "Did you want to editing ip address from interface : $request->interface", 'address_lists' => $this->API->comm('/ip/address/print')]);
+
                 $add_address = $this->API->comm('/ip/address/add', [
                     'address' => $request->address,
                     'interface' => $request->interface
@@ -323,21 +331,30 @@ class RouterosController extends Controller
             if($validator->fails()) return response()->json($validator->errors(), 404);
 
             if($this->check_routeros_connection($request->all())):
-                $add_firewall_nat = $this->API->comm('/ip/firewall/nat/add', [
-                    'chain' => $request->chain,
-                    'action' => $request->action,
-                    'protocol' => $request->protocol,
-                    'out-interface' => $request->out_interface
-                ]);
+                $check_src_nat = $this->API->comm('/ip/firewall/nat/print');
 
-                $firewall_nat_lists = $this->API->comm('/ip/firewall/nat/print');
+                if(count($check_src_nat) == 0):
+                    $add_firewall_nat = $this->API->comm('/ip/firewall/nat/add', [
+                        'chain' => $request->chain,
+                        'action' => $request->action,
+                        'protocol' => $request->protocol,
+                        'out-interface' => $request->out_interface
+                    ]);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => "Success added firewall nat for $request->chain",
-                    'nat_lists' => $firewall_nat_lists
-                ]);
+                    $firewall_nat_lists = $this->API->comm('/ip/firewall/nat/print');
 
+                    return response()->json([
+                        'success' => true,
+                        'message' => "Success added firewall nat for $request->chain",
+                        'nat_lists' => $firewall_nat_lists
+                    ]);
+                else:
+                    return response()->json([
+                        'error' => true,
+                        'message' => "srcnat for out-interface $request->out_interface has already been taken",
+                        'srcnat_lists' => $check_src_nat
+                    ]);
+                endif;
             endif;
         }catch(Exception $e){
             return response()->json(['error' => true, 'message' => 'Error fetch routeros API '.$e->getMessage()]);
