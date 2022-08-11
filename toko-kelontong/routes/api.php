@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Route;
 */
     
 Route::prefix('v1')->group(function(){
-    Route::get('/test-api', [TokoKelontongController::class, 'test_api']);
     Route::post('/send-message', [TokoKelontongController::class, 'contact_message']);
     Route::post('/newsletter', [TokoKelontongController::class, 'newsletter']);
+    Route::get('/location', [TokoKelontongController::class, 'location']);
 });
 
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
